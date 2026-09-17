@@ -22,7 +22,15 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Run tests
-        run: bun test
+        run: |
+          if find . \
+            -path './node_modules' -prune -o \
+            -path './dist' -prune -o \
+            -type f \( -name '*.test.*' -o -name '*.spec.*' -o -name '*_test_*' -o -name '*_spec_*' \) -print -quit | grep -q .; then
+            bun test
+          else
+            echo "No test files found. Skipping tests."
+          fi
 
       - name: Build
         run: bun run build
