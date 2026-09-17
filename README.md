@@ -72,7 +72,59 @@ async function bootstrap() {
 bootstrap();
 ```
 
-### 2. Use Tracing Decorator
+### 2. Register Metrics Interceptor
+
+Register the built-in HTTP metrics interceptor:
+
+```typescript
+import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { MetricsInterceptor } from '@gsainfoteam/nest-observability';
+
+@Module({
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: MetricsInterceptor,
+    },
+  ],
+})
+export class AppModule {}
+```
+
+This automatically records:
+- `http_requests_total` - Total HTTP requests
+- `http_request_duration_seconds` - Request duration
+- `http_requests_in_flight` - Currently in-flight requests
+- `http_request_errors_total` - Failed requests with error details
+
+### 3. Register Prisma Metrics Service (Optional)
+
+For database query metrics, register the Prisma metrics service:
+
+```typescript
+import { Module } from '@nestjs/common';
+import { PrismaMetricsService } from '@gsainfoteam/nest-observability';
+import { PrismaService } from './prisma.service';
+
+@Module({
+  providers: [PrismaService, PrismaMetricsService],
+})
+export class DatabaseModule {
+  constructor(
+    private prisma: PrismaService,
+    private metrics: PrismaMetricsService,
+  ) {
+    this.prisma.$on('query', this.metrics.getMetricsMiddleware());
+  }
+}
+```
+
+This automatically records:
+- `db_queries_total` - Total database queries by operation and model
+- `db_query_duration_seconds` - Query duration histogram
+
+### 4. Use Tracing Decorator
 
 Add `@Trace()` decorator to your service methods for automatic span creation:
 
@@ -90,35 +142,14 @@ export class UserService {
 }
 ```
 
-### 3. Record Metrics
+### 5. Use Serializer Interceptor
 
-Use the exported metric adapters to record application metrics:
-
-```typescript
-import {
-  httpRequestsTotal,
-  httpRequestDurationSeconds,
-  httpRequestErrorsTotal,
-  dbQueriesTotal,
-  dbQueryDurationSeconds,
-} from '@gsainfoteam/nest-observability';
-
-// In HTTP interceptor
-httpRequestsTotal.add(1, { method: 'GET', route: '/users', status_code: 200 });
-httpRequestDurationSeconds.record(0.125, { method: 'GET', route: '/users', status_code: 200 });
-
-// In DB query interceptor
-dbQueriesTotal.add(1, { operation: 'find', model: 'User' });
-dbQueryDurationSeconds.record(0.025, { operation: 'find', model: 'User' });
-```
-
-### 4. Use Serializer Interceptor
-
-Apply the observability-aware serializer interceptor:
+Apply the observability-aware serializer interceptor for response serialization tracing:
 
 ```typescript
-import { OtelClassSerializerInterceptor } from '@gsainfoteam/nest-observability';
+import { Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
+import { OtelClassSerializerInterceptor } from '@gsainfoteam/nest-observability';
 
 @Module({
   providers: [
@@ -155,18 +186,23 @@ METRICS_PORT=9464
 API_URL=https://api.example.com
 ```
 
-## Metrics Exported
+## Provided Interceptors & Services
 
-- **httpRequestsTotal** - Total HTTP requests counter
-- **httpRequestDurationSeconds** - HTTP request duration histogram
-- **httpRequestsInFlight** - Current in-flight requests gauge
-- **httpRequestErrorsTotal** - Failed HTTP requests counter
-- **dbQueriesTotal** - Total database queries counter
-- **dbQueryDurationSeconds** - Database query duration histogram
+- **MetricsInterceptor** - Automatic HTTP metrics collection
+- **PrismaMetricsService** - Database query metrics for Prisma ORM
+- **OtelClassSerializerInterceptor** - Response serialization with tracing
+- **@Trace()** - Class decorator for automatic method-level span creation
 
-## Utilities
+## Built-in Metrics
 
-- `@Trace()` - Class decorator for automatic span creation on all methods
-- `OtelClassSerializerInterceptor` - NestJS response serialization with tracing
-- `setSpanError()` - Utility for recording errors in spans
-- `startHttpRequestDurationTimer()` - Helper for measuring HTTP request duration
+The package automatically collects the following metrics when interceptors are registered:
+
+### HTTP Metrics
+- `http_requests_total` - Total HTTP requests (labels: method, route, status_code)
+- `http_request_duration_seconds` - Request duration histogram (labels: method, route, status_code)
+- `http_requests_in_flight` - Current in-flight requests (labels: method, route)
+- `http_request_errors_total` - Failed requests (labels: method, route, error_name, status_code)
+
+### Database Metrics (with PrismaMetricsService)
+- `db_queries_total` - Total database queries (labels: operation, model)
+- `db_query_duration_seconds` - Query duration histogram (labels: operation, model)

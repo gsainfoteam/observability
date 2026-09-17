@@ -3,16 +3,12 @@ export { initializeOpenTelemetry, shutdownOpenTelemetry } from './otel';
 export type { OTelConfig } from './otel';
 
 // Metrics
-export {
-  initializeMetrics,
-  httpRequestsTotal,
-  httpRequestDurationSeconds,
-  startHttpRequestDurationTimer,
-  httpRequestsInFlight,
-  httpRequestErrorsTotal,
-  dbQueryDurationSeconds,
-  dbQueriesTotal,
-} from './metrics';
+export { initializeMetrics } from './metrics';
+
+// Metrics Interceptors & Services
+export { MetricsInterceptor } from './metrics/metrics.interceptor';
+export { PrismaMetricsService } from './metrics/prisma-metrics.service';
+export type { PrismaQueryEvent } from './metrics/prisma-metrics.service';
 
 // OTEL Utilities
 export { Trace } from './otel/trace.decorator';

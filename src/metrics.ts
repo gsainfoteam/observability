@@ -187,14 +187,14 @@ export const initializeMetrics = (serviceName: string): void => {
   metricsInstruments.initialize(serviceName);
 };
 
-// HTTP
-export const httpRequestsTotal: CounterAdapter = {
+// HTTP (internal use only)
+const httpRequestsTotal: CounterAdapter = {
   add(value, attributes) {
     metricsInstruments.addHttpRequestsTotal(value, attributes);
   },
 };
 
-export const httpRequestDurationSeconds: HistogramAdapter = {
+const httpRequestDurationSeconds: HistogramAdapter = {
   record(value, attributes) {
     metricsInstruments.recordHttpRequestDurationSeconds(value, attributes);
   },
@@ -214,27 +214,37 @@ export const startHttpRequestDurationTimer = (labels: Attributes) => {
   };
 };
 
-export const httpRequestsInFlight: UpDownCounterAdapter = {
+const httpRequestsInFlight: UpDownCounterAdapter = {
   add(value, attributes) {
     metricsInstruments.addHttpRequestsInFlight(value, attributes);
   },
 };
 
-export const httpRequestErrorsTotal: CounterAdapter = {
+const httpRequestErrorsTotal: CounterAdapter = {
   add(value, attributes) {
     metricsInstruments.addHttpRequestErrorsTotal(value, attributes);
   },
 };
 
-// DB
-export const dbQueryDurationSeconds: HistogramAdapter = {
+// DB (internal use only)
+const dbQueryDurationSeconds: HistogramAdapter = {
   record(value, attributes) {
     metricsInstruments.recordDbQueryDurationSeconds(value, attributes);
   },
 };
 
-export const dbQueriesTotal: CounterAdapter = {
+const dbQueriesTotal: CounterAdapter = {
   add(value, attributes) {
     metricsInstruments.addDbQueriesTotal(value, attributes);
   },
 };
+
+// Exports for internal use in interceptors/services
+export const getMetricInstruments = () => ({
+  httpRequestsTotal,
+  httpRequestDurationSeconds,
+  httpRequestsInFlight,
+  httpRequestErrorsTotal,
+  dbQueryDurationSeconds,
+  dbQueriesTotal,
+});
