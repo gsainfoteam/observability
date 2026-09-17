@@ -74,22 +74,19 @@ bootstrap();
 
 ### 2. Register Metrics Interceptor
 
-Register the built-in HTTP metrics interceptor:
+Register the built-in HTTP metrics interceptor (in `main.ts`):
 
 ```typescript
-import { Module } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
 import { MetricsInterceptor } from '@gsainfoteam/nest-observability';
 
-@Module({
-  providers: [
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: MetricsInterceptor,
-    },
-  ],
-})
-export class AppModule {}
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  
+  // Register metrics interceptor
+  app.useGlobalInterceptors(new MetricsInterceptor());
+  
+  await app.listen(process.env.PORT ?? 3000);
+}
 ```
 
 This automatically records:
@@ -142,24 +139,23 @@ export class UserService {
 }
 ```
 
-### 5. Use Serializer Interceptor
+### 5. Use Serializer Interceptor (Optional)
 
 Apply the observability-aware serializer interceptor for response serialization tracing:
 
 ```typescript
-import { Module } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
 import { OtelClassSerializerInterceptor } from '@gsainfoteam/nest-observability';
+import { Reflector } from '@nestjs/core';
 
-@Module({
-  providers: [
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: OtelClassSerializerInterceptor,
-    },
-  ],
-})
-export class AppModule {}
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  const reflector = app.get(Reflector);
+  
+  // Register serializer interceptor (requires Reflector dependency)
+  app.useGlobalInterceptors(new OtelClassSerializerInterceptor(reflector));
+  
+  await app.listen(process.env.PORT ?? 3000);
+}
 ```
 
 ## Configuration
