@@ -1,0 +1,21 @@
+{
+  "name": "@gsainfoteam/nest-observability",
+  "version": "0.0.1",
+  "description": "NestJS observability toolkit",
+  "module": "dist/index.ts",
+  "type": "module",
+  "private": false,
+  "scripts": {
+    "dev": "bun index.ts",
+    "build": "bun build ./src/index.ts --outdir ./dist",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^7"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^10",
+    "@nestjs/core": "^10"
+  }
+}
