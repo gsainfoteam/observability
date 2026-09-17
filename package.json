@@ -13,8 +13,7 @@
   "scripts": {
     "dev": "bun index.ts",
     "build": "bun build ./src/index.ts --outdir ./dist --target node",
-    "test": "bun test",
-    "publish": "npm publish"
+    "test": "bun test"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
