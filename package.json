@@ -2,14 +2,19 @@
   "name": "@gsainfoteam/nest-observability",
   "version": "0.0.1",
   "description": "NestJS observability toolkit",
-  "module": "dist/index.ts",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
   "type": "module",
   "private": false,
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "bun index.ts",
     "build": "bun build ./src/index.ts --outdir ./dist --target node",
     "test": "bun test",
-    "publish": "bun publish"
+    "publish": "npm publish"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",

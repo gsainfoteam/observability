@@ -20,6 +20,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: "@gsainfoteam"
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
@@ -34,15 +41,7 @@ jobs:
       - name: Build
         run: bun run build
 
-      - name: Setup .npmrc for GitHub Packages
-        run: |
-          cat > ~/.npmrc << EOF
-          @gsainfoteam:registry=https://npm.pkg.github.com
-          //npm.pkg.github.com/:_authToken=\${{ secrets.GITHUB_TOKEN }}
-          EOF
-
       - name: Publish to GitHub Packages
         run: bun run publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: false
