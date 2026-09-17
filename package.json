@@ -17,5 +17,8 @@
   "peerDependencies": {
     "@nestjs/common": "^10",
     "@nestjs/core": "^10"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   }
 }
