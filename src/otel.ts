@@ -76,7 +76,7 @@ function extractOutgoingPath(request: unknown): string | undefined {
 
 function isNoisePath(
   path?: string,
-  ignorePatterns: string[] = DEFAULT_IGNORE_PATTERNS,
+  ignorePatterns: readonly string[] = DEFAULT_IGNORE_PATTERNS,
 ): boolean {
   const normalizedPath = normalizePath(path);
 
@@ -84,7 +84,7 @@ function isNoisePath(
     return false;
   }
 
-  const [pathname] = normalizedPath.split('?');
+  const [pathname = ''] = normalizedPath.split('?');
   const canonicalPath = pathname.replace(/\/+$/, '') || '/';
 
   return ignorePatterns.some((noisePath) => canonicalPath === noisePath);
@@ -92,7 +92,7 @@ function isNoisePath(
 
 function isIgnoredIncomingDomain(
   url?: string,
-  ignoreDomains: string[] = [],
+  ignoreDomains: readonly string[] = [],
 ): boolean {
   if (!url || ignoreDomains.length === 0) {
     return false;
@@ -103,7 +103,7 @@ function isIgnoredIncomingDomain(
     return false;
   }
 
-  const [pathname] = normalizedPath.split('?');
+  const [pathname = ''] = normalizedPath.split('?');
   const canonicalPath = pathname.replace(/\/+$/, '') || '/';
 
   return ignoreDomains.some((domain) => canonicalPath === domain);

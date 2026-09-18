@@ -26,5 +26,10 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
+  },
+  "ts-node": {
+    "compilerOptions": {
+      "module": "ESNext"
+    }
   }
 }
