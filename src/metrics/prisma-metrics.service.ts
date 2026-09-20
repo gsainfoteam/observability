@@ -1,11 +1,12 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { getMetricInstruments } from '../metrics';
+import { Injectable, Inject } from "@nestjs/common";
+import { getMetricInstruments } from "../metrics";
 
 export interface PrismaQueryEvent {
-  query: string;
-  duration: number;
   timestamp: Date;
-  target?: string;
+  query: string;
+  params: string;
+  duration: number;
+  target: string;
 }
 
 @Injectable()
@@ -32,12 +33,12 @@ export class PrismaMetricsService {
   private extractOperation(query: string): string {
     const upper = query.trim().toUpperCase();
 
-    if (upper.startsWith('SELECT')) return 'select';
-    if (upper.startsWith('INSERT')) return 'insert';
-    if (upper.startsWith('UPDATE')) return 'update';
-    if (upper.startsWith('DELETE')) return 'delete';
+    if (upper.startsWith("SELECT")) return "select";
+    if (upper.startsWith("INSERT")) return "insert";
+    if (upper.startsWith("UPDATE")) return "update";
+    if (upper.startsWith("DELETE")) return "delete";
 
-    return 'other';
+    return "other";
   }
 
   private extractModel(query: string): string {
@@ -47,6 +48,6 @@ export class PrismaMetricsService {
     const model = tableMatch?.[1] ?? tableMatch?.[2];
     if (model) return model;
 
-    return 'unknown';
+    return "unknown";
   }
 }
