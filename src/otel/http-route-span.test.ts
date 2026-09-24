@@ -164,8 +164,9 @@ test('applyHttpRouteToSpans also labels the active Nest child span', () => {
     });
 
     expect(httpSpan.attributes[ATTR_HTTP_ROUTE]).toBe('/users/:id');
+    expect(httpSpan.name).toBe('GET /users/:id');
     expect(nestSpan.attributes[ATTR_HTTP_ROUTE]).toBe('/users/:id');
-    expect(nestSpan.name).toBe('GET /users/:id');
+    expect(nestSpan.name).toBe('UsersController.get');
   });
 });
 

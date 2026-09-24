@@ -101,8 +101,12 @@ export function isIncomingHttpRequest(request: unknown): boolean {
   );
 }
 
-function setHttpRouteOnSpan(span: Span, req: unknown, route: string): void {
+function setHttpRouteAttribute(span: Span, route: string): void {
   span.setAttribute(ATTR_HTTP_ROUTE, route);
+}
+
+function setHttpRouteOnServerSpan(span: Span, req: unknown, route: string): void {
+  setHttpRouteAttribute(span, route);
   span.updateName(`${requestMethod(req)} ${route}`);
 }
 
@@ -131,8 +135,10 @@ export function stashHttpServerSpan(request: unknown, span: Span): void {
  *
  * Call this from a Nest interceptor after routing. It:
  * 1. Stashes the template on the request / `req.raw` for the HTTP span hook
- * 2. Sets `http.route` on the SERVER span stashed by `requestHook`
- * 3. Best-effort: sets `rpcMetadata.route` (Express-compatible) and the active span
+ * 2. Sets `http.route` and renames the SERVER span stashed by `requestHook`
+ *    (and `rpcMetadata.span`) to `{method} {route}`
+ * 3. Sets `http.route` on the active span without renaming it — that span is
+ *    often a Nest handler child (`UsersController.get`)
  */
 export function applyHttpRouteToSpans(
   req: unknown,
@@ -143,24 +149,28 @@ export function applyHttpRouteToSpans(
   });
 
   const labeled = new Set<Span>();
-  const label = (span: Span | undefined): void => {
+  const labelServer = (span: Span | undefined): void => {
     if (!span || labeled.has(span)) {
       return;
     }
 
     labeled.add(span);
-    setHttpRouteOnSpan(span, req, route);
+    setHttpRouteOnServerSpan(span, req, route);
   };
 
-  label(readStashedHttpServerSpan(req));
+  labelServer(readStashedHttpServerSpan(req));
 
   const rpcMetadata = getRPCMetadata(context.active());
   if (rpcMetadata?.type === RPCType.HTTP) {
     rpcMetadata.route = route;
-    label(rpcMetadata.span);
+    labelServer(rpcMetadata.span);
   }
 
-  label(trace.getActiveSpan());
+  const activeSpan = trace.getActiveSpan();
+  if (activeSpan && !labeled.has(activeSpan)) {
+    labeled.add(activeSpan);
+    setHttpRouteAttribute(activeSpan, route);
+  }
 
   return route;
 }
@@ -181,5 +191,5 @@ export function applyHttpRouteOnIncomingSpan(span: Span, request: unknown): void
   }
 
   const route = readStashedRoute(request) ?? normalizeHttpRoute(request);
-  setHttpRouteOnSpan(span, request, route);
+  setHttpRouteOnServerSpan(span, request, route);
 }
