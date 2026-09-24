@@ -7,6 +7,7 @@ type HttpRequestLike = {
   routeOptions?: { url?: unknown };
 };
 
+/** Trim strings, returning undefined for non-strings or whitespace-only values. */
 function asNonEmptyString(value: unknown): string | undefined {
   if (typeof value !== 'string') {
     return undefined;
@@ -19,9 +20,11 @@ function asNonEmptyString(value: unknown): string | undefined {
 /**
  * Resolve a low-cardinality HTTP route label from an Express or Fastify Nest request.
  *
- * Uses only matched route templates (`/users/:id`). Concrete request paths are
- * never used as metric labels, so path parameters cannot explode Prometheus
- * cardinality.
+ * Prefers the Express `baseUrl` + `route.path` template, then Fastify
+ * `routeOptions.url`. Uses legacy `routerPath` only when `routeOptions` is not
+ * an object. Returns `unmatched` if no eligible nonblank string template exists.
+ * Concrete request paths are never used as metric labels; a template such as
+ * `/users/:id` keeps path parameters out of metric labels.
  */
 export function normalizeHttpRoute(req: unknown): string {
   if (!req || typeof req !== 'object') {

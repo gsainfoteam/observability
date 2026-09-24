@@ -12,6 +12,18 @@ import { normalizeHttpRoute } from './normalize-route';
 
 @Injectable()
 export class MetricsInterceptor implements NestInterceptor {
+  /**
+   * Record HTTP request metrics using the method and route template (or
+   * `unmatched`) as labels.
+   *
+   * Counts the request in flight before invoking the handler. When its observable
+   * completes, errors, or is unsubscribed, records the total and duration in
+   * seconds and decrements the in-flight count. Emitted errors are counted
+   * separately and passed through. HTTP exceptions use their status; other
+   * errors use the response status if it is at least 400, or 500 otherwise.
+   *
+   * @throws {Error} If metrics have not been initialized.
+   */
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const http = context.switchToHttp();
     const req = http.getRequest();
