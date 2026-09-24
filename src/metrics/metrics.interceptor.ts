@@ -8,6 +8,7 @@ import {
 import { Observable } from 'rxjs';
 import { finalize, tap } from 'rxjs/operators';
 import { getMetricInstruments, startHttpRequestDurationTimer } from '../metrics';
+import { normalizeHttpRoute } from './normalize-route';
 
 @Injectable()
 export class MetricsInterceptor implements NestInterceptor {
@@ -20,7 +21,7 @@ export class MetricsInterceptor implements NestInterceptor {
       getMetricInstruments();
 
     const method = req.method ?? 'UNKNOWN';
-    const route = this.normalizeRoute(req);
+    const route = normalizeHttpRoute(req);
 
     const endTimer = startHttpRequestDurationTimer({ method, route });
 
@@ -69,16 +70,5 @@ export class MetricsInterceptor implements NestInterceptor {
         httpRequestsInFlight.add(-1, { method, route });
       }),
     );
-  }
-
-  private normalizeRoute(req: any): string {
-    const baseUrl = req.baseUrl || '';
-    const routePath = req.route?.path || '';
-
-    if (routePath) {
-      return `${baseUrl}${routePath}`;
-    }
-
-    return 'unmatched';
   }
 }

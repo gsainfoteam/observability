@@ -95,6 +95,13 @@ This automatically records:
 - `http_requests_in_flight` - Currently in-flight requests
 - `http_request_errors_total` - Failed requests with error details
 
+HTTP metrics use a `route` label. The interceptor prefers the **matched route template** (for example `/users/:id`) over the concrete URL so path parameters do not explode Prometheus cardinality. This works for both Nest adapters:
+
+- Express: `req.baseUrl` + `req.route.path`
+- Fastify: `req.routeOptions.url` (Fastify 4.10+/5) or `req.routerPath` (older Fastify)
+
+If no template is available, it falls back to the request pathname with the query string stripped. If nothing usable is found, the label is `unmatched`.
+
 ### 3. Register Prisma Metrics Service (Optional)
 
 For database query metrics, register the Prisma metrics service:
