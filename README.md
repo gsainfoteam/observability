@@ -102,6 +102,8 @@ HTTP metrics use a `route` label. The interceptor prefers the **matched route te
 
 If no string route template is available, the label is `unmatched`. Concrete request paths (`url`, `path`, `originalUrl`) are never used as labels.
 
+The same template is written to inbound HTTP **server** spans as `http.route`, and the span name is updated (for example `GET /users/:id`) so Tempo/Grafana show a stable path. HTTP `requestHook` runs before Fastify matches a route, so it only stashes the SERVER span; `MetricsInterceptor` then sets `http.route` after routing. If no template is available, `http.route` is `unmatched` rather than a concrete path with IDs.
+
 ### 3. Register Prisma Metrics Service (Optional)
 
 For database query metrics, register the Prisma metrics service:

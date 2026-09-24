@@ -8,13 +8,15 @@ import {
 import { Observable } from 'rxjs';
 import { finalize, tap } from 'rxjs/operators';
 import { getMetricInstruments, startHttpRequestDurationTimer } from '../metrics';
+import { applyHttpRouteToSpans } from '../otel/http-route-span';
 import { normalizeHttpRoute } from './normalize-route';
 
 @Injectable()
 export class MetricsInterceptor implements NestInterceptor {
   /**
    * Record HTTP request metrics using the method and route template (or
-   * `unmatched`) as labels.
+   * `unmatched`) as labels, and publish that same template as `http.route` on
+   * inbound HTTP server spans.
    *
    * Counts the request in flight before invoking the handler. When its observable
    * completes, errors, or is unsubscribed, records the total and duration in
@@ -34,6 +36,7 @@ export class MetricsInterceptor implements NestInterceptor {
 
     const method = req.method ?? 'UNKNOWN';
     const route = normalizeHttpRoute(req);
+    applyHttpRouteToSpans(req, route);
 
     const endTimer = startHttpRequestDurationTimer({ method, route });
 

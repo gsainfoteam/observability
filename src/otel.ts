@@ -8,6 +8,11 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 import { PrismaInstrumentation } from '@prisma/instrumentation';
 
+import {
+  applyHttpRouteOnIncomingSpan,
+  stashHttpServerSpan,
+} from './otel/http-route-span';
+
 export type OTelConfig = {
   serviceName: string;
   otlpEndpoint: string;
@@ -148,6 +153,14 @@ export const initializeOpenTelemetry = async (
                     extractOutgoingPath(request),
                     config.ignorePatterns,
                   );
+                },
+                // requestHook is too early to set http.route (Fastify has not
+                // matched yet) but can stash the SERVER span for the interceptor.
+                requestHook: (span, request) => {
+                  stashHttpServerSpan(request, span);
+                },
+                applyCustomAttributesOnSpan: (span, request) => {
+                  applyHttpRouteOnIncomingSpan(span, request);
                 },
               },
             }),
