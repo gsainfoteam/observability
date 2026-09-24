@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "dev": "bun index.ts",
-    "build": "bun build ./src/index.ts --outdir ./dist --target node -e @prisma/instrumentation && tsc -p tsconfig.build.json --emitDeclarationOnly",
+    "build": "bun build ./src/index.ts --outdir ./dist --target node --packages=external && tsc -p tsconfig.build.json --emitDeclarationOnly",
     "test": "bun test"
   },
   "dependencies": {

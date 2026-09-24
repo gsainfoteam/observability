@@ -150,7 +150,9 @@ export class UserService {
 
 ### 5. Use Serializer Interceptor (Optional)
 
-Apply the observability-aware serializer interceptor for response serialization tracing:
+`OtelClassSerializerInterceptor` is a drop-in replacement for Nest's `ClassSerializerInterceptor`. It only adds a `nest.response.serialize` span around the same `serialize()` path — `@Exclude()`, `@Expose()`, getters, and `@SerializeOptions()` keep working.
+
+Pass the same constructor arguments you would pass to `ClassSerializerInterceptor` (Reflector plus optional default `class-transformer` options). Do **not** register both interceptors.
 
 ```typescript
 import { OtelClassSerializerInterceptor } from '@gsainfoteam/nest-observability';
@@ -159,10 +161,14 @@ import { Reflector } from '@nestjs/core';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const reflector = app.get(Reflector);
-  
-  // Register serializer interceptor (requires Reflector dependency)
-  app.useGlobalInterceptors(new OtelClassSerializerInterceptor(reflector));
-  
+
+  app.useGlobalInterceptors(
+    new OtelClassSerializerInterceptor(reflector, {
+      // optional; same options object as ClassSerializerInterceptor
+      // excludeExtraneousValues: true,
+    }),
+  );
+
   await app.listen(process.env.PORT ?? 3000);
 }
 ```
