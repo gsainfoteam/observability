@@ -70,37 +70,7 @@ test('keeps Fastify prefix in the registered template', () => {
   ).toBe('/v1/users/:id');
 });
 
-test('falls back to originalUrl pathname without query when no template exists', () => {
-  expect(
-    normalizeHttpRoute({
-      originalUrl: '/static/healthz?ready=1',
-      url: '/static/healthz?ready=1',
-    }),
-  ).toBe('/static/healthz');
-});
-
-test('falls back to Express path when originalUrl is missing', () => {
-  expect(normalizeHttpRoute({ path: '/ready' })).toBe('/ready');
-});
-
-test('falls back to Fastify url pathname without query when no template exists', () => {
-  expect(
-    normalizeHttpRoute({
-      url: '/unregistered/path?x=1#frag',
-      routeOptions: {},
-    }),
-  ).toBe('/unregistered/path');
-});
-
-test('extracts pathname from an absolute URL fallback', () => {
-  expect(
-    normalizeHttpRoute({
-      url: 'http://localhost:3000/users/1?q=1',
-    }),
-  ).toBe('/users/1');
-});
-
-test('returns unmatched when the request has no usable path', () => {
+test('returns unmatched when no route template is available', () => {
   expect(normalizeHttpRoute(undefined)).toBe('unmatched');
   expect(normalizeHttpRoute(null)).toBe('unmatched');
   expect(normalizeHttpRoute({})).toBe('unmatched');
@@ -114,11 +84,32 @@ test('returns unmatched when the request has no usable path', () => {
   ).toBe('unmatched');
 });
 
+test('does not use concrete request paths as metric labels', () => {
+  expect(
+    normalizeHttpRoute({
+      originalUrl: '/static/healthz?ready=1',
+      path: '/static/healthz',
+      url: '/static/healthz?ready=1',
+    }),
+  ).toBe('unmatched');
+  expect(
+    normalizeHttpRoute({
+      url: '/unregistered/path?x=1#frag',
+      routeOptions: {},
+    }),
+  ).toBe('unmatched');
+  expect(
+    normalizeHttpRoute({
+      url: 'http://localhost:3000/users/1?q=1',
+    }),
+  ).toBe('unmatched');
+});
+
 test('does not treat a non-string Express route.path as a template', () => {
   expect(
     normalizeHttpRoute({
       route: { path: /^\/users\/.+/ },
       url: '/users/123',
     }),
-  ).toBe('/users/123');
+  ).toBe('unmatched');
 });

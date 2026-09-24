@@ -100,7 +100,7 @@ HTTP metrics use a `route` label. The interceptor prefers the **matched route te
 - Express: `req.baseUrl` + `req.route.path`
 - Fastify: `req.routeOptions.url` (Fastify 4.10+/5) or `req.routerPath` (older Fastify)
 
-If no template is available, it falls back to the request pathname with the query string stripped. If nothing usable is found, the label is `unmatched`.
+If no string route template is available, the label is `unmatched`. Concrete request paths (`url`, `path`, `originalUrl`) are never used as labels.
 
 ### 3. Register Prisma Metrics Service (Optional)
 

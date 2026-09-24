@@ -5,9 +5,6 @@ type HttpRequestLike = {
   route?: { path?: unknown };
   routerPath?: unknown;
   routeOptions?: { url?: unknown };
-  originalUrl?: unknown;
-  path?: unknown;
-  url?: unknown;
 };
 
 function asNonEmptyString(value: unknown): string | undefined {
@@ -19,45 +16,12 @@ function asNonEmptyString(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-function stripQueryAndHash(url: string): string {
-  const queryIndex = url.indexOf('?');
-  const hashIndex = url.indexOf('#');
-  let end = url.length;
-
-  if (queryIndex !== -1) {
-    end = queryIndex;
-  }
-
-  if (hashIndex !== -1 && hashIndex < end) {
-    end = hashIndex;
-  }
-
-  return url.slice(0, end);
-}
-
-function pathnameFromUrlLike(value: unknown): string | undefined {
-  const raw = asNonEmptyString(value);
-  if (!raw) {
-    return undefined;
-  }
-
-  if (raw.startsWith('http://') || raw.startsWith('https://')) {
-    try {
-      return new URL(raw).pathname;
-    } catch {
-      return stripQueryAndHash(raw);
-    }
-  }
-
-  const pathname = stripQueryAndHash(raw);
-  return pathname.length > 0 ? pathname : undefined;
-}
-
 /**
  * Resolve a low-cardinality HTTP route label from an Express or Fastify Nest request.
  *
- * Prefers the matched route template (`/users/:id`) over the concrete URL so
- * Prometheus metric cardinality does not explode on path parameters.
+ * Uses only matched route templates (`/users/:id`). Concrete request paths are
+ * never used as metric labels, so path parameters cannot explode Prometheus
+ * cardinality.
  */
 export function normalizeHttpRoute(req: unknown): string {
   if (!req || typeof req !== 'object') {
@@ -89,10 +53,5 @@ export function normalizeHttpRoute(req: unknown): string {
     }
   }
 
-  const fallbackPath =
-    pathnameFromUrlLike(request.originalUrl) ??
-    pathnameFromUrlLike(request.path) ??
-    pathnameFromUrlLike(request.url);
-
-  return fallbackPath ?? UNMATCHED_ROUTE;
+  return UNMATCHED_ROUTE;
 }
