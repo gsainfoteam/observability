@@ -22,6 +22,10 @@ export const HTTP_SERVER_SPAN_KEY = Symbol.for(
   'nest-observability.httpServerSpan',
 );
 
+const FASTIFY_HTTP_ROUTE_HOOK_KEY = Symbol.for(
+  'nest-observability.fastifyHttpRouteHook',
+);
+
 type RequestCarrier = {
   [HTTP_ROUTE_REQUEST_KEY]?: string;
   [HTTP_SERVER_SPAN_KEY]?: Span;
@@ -192,4 +196,124 @@ export function applyHttpRouteOnIncomingSpan(span: Span, request: unknown): void
 
   const route = readStashedRoute(request) ?? normalizeHttpRoute(request);
   setHttpRouteOnServerSpan(span, request, route);
+}
+
+type FastifyHookInstance = {
+  addHook?: (name: string, handler: FastifyLifecycleHook) => unknown;
+  [FASTIFY_HTTP_ROUTE_HOOK_KEY]?: true;
+};
+
+type FastifyLifecycleHook = (
+  request: unknown,
+  reply: unknown,
+  done?: (err?: Error) => void,
+) => void;
+
+/**
+ * Label inbound HTTP SERVER spans from Fastify after routing, including CORS
+ * preflight OPTIONS that `@fastify/cors` answers in `onRequest` before Nest
+ * interceptors run. Safe to call more than once on the same instance.
+ */
+export function registerFastifyHttpRouteHook(instance: unknown): void {
+  if (!instance || typeof instance !== 'object') {
+    return;
+  }
+
+  const app = instance as FastifyHookInstance;
+  if (typeof app.addHook !== 'function' || app[FASTIFY_HTTP_ROUTE_HOOK_KEY]) {
+    return;
+  }
+
+  app[FASTIFY_HTTP_ROUTE_HOOK_KEY] = true;
+
+  const applyRoute = (
+    request: unknown,
+    _reply: unknown,
+    done?: (err?: Error) => void,
+  ): void => {
+    try {
+      applyHttpRouteToSpans(request);
+    } catch {
+      // Observability must not fail the request.
+    }
+
+    if (typeof done === 'function') {
+      done();
+    }
+  };
+
+  // onRequest runs after Fastify routing and before CORS may reply.
+  // onResponse still runs if an earlier hook sent the preflight response.
+  app.addHook('onRequest', applyRoute);
+  app.addHook('onResponse', applyRoute);
+}
+
+/**
+ * Wrap a Fastify factory so every created instance gets
+ * {@link registerFastifyHttpRouteHook}. Used by the SDK instrumentation.
+ */
+export function wrapFastifyFactory<T>(factory: T): T {
+  if (typeof factory !== 'function') {
+    return factory;
+  }
+
+  const original = factory as (...args: unknown[]) => unknown;
+
+  const wrapped = function (this: unknown, ...args: unknown[]): unknown {
+    const instance = original.apply(this, args);
+    if (instance && typeof (instance as { then?: unknown }).then === 'function') {
+      return Promise.resolve(instance).then((app) => {
+        registerFastifyHttpRouteHook(app);
+        return app;
+      });
+    }
+
+    registerFastifyHttpRouteHook(instance);
+    return instance;
+  };
+
+  Object.assign(wrapped, original);
+  Object.setPrototypeOf(wrapped, Object.getPrototypeOf(original));
+
+  return wrapped as T;
+}
+
+/**
+ * Patch `fastify` / `fastify.default` / `fastify.fastify` factory exports.
+ */
+export function patchFastifyModuleExports<T>(moduleExports: T): T {
+  if (typeof moduleExports === 'function') {
+    const wrapped = wrapFastifyFactory(moduleExports) as ((
+      ...args: unknown[]
+    ) => unknown) & {
+      default?: unknown;
+      fastify?: unknown;
+    };
+    wrapped.default = wrapped;
+    wrapped.fastify = wrapped;
+    return wrapped as T;
+  }
+
+  if (!moduleExports || typeof moduleExports !== 'object') {
+    return moduleExports;
+  }
+
+  const exportsObject = moduleExports as {
+    default?: unknown;
+    fastify?: unknown;
+  };
+  const factory = exportsObject.fastify ?? exportsObject.default;
+  if (typeof factory !== 'function') {
+    return moduleExports;
+  }
+
+  const wrapped = wrapFastifyFactory(factory);
+  if (exportsObject.fastify === factory) {
+    exportsObject.fastify = wrapped;
+  }
+  if (exportsObject.default === factory) {
+    exportsObject.default = wrapped;
+  }
+
+  return moduleExports;
 }

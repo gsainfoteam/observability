@@ -11,7 +11,10 @@ import {
   HTTP_ROUTE_REQUEST_KEY,
   HTTP_SERVER_SPAN_KEY,
   isIncomingHttpRequest,
+  patchFastifyModuleExports,
+  registerFastifyHttpRouteHook,
   stashHttpServerSpan,
+  wrapFastifyFactory,
 } from './http-route-span';
 
 type MockSpan = Span & {
@@ -224,4 +227,183 @@ test('applyHttpRouteOnIncomingSpan labels Fastify IncomingMessage unmatched with
   });
 
   expect(span.attributes[ATTR_HTTP_ROUTE]).toBe('unmatched');
+});
+
+test('applyHttpRouteToSpans labels OPTIONS with the Fastify template', () => {
+  const httpSpan = createMockSpan('OPTIONS');
+  const incoming = {
+    httpVersion: '1.1',
+    method: 'OPTIONS',
+    url: '/users/123',
+  };
+  stashHttpServerSpan(incoming, httpSpan);
+
+  applyHttpRouteToSpans({
+    method: 'OPTIONS',
+    url: '/users/123',
+    routeOptions: { url: '/users/:id', method: 'OPTIONS' },
+    raw: incoming,
+  });
+
+  expect(httpSpan.attributes[ATTR_HTTP_ROUTE]).toBe('/users/:id');
+  expect(httpSpan.name).toBe('OPTIONS /users/:id');
+});
+
+test('applyHttpRouteOnIncomingSpan labels OPTIONS IncomingMessage unmatched without Fastify routing', () => {
+  const span = createMockSpan('OPTIONS');
+
+  applyHttpRouteOnIncomingSpan(span, {
+    httpVersion: '1.1',
+    method: 'OPTIONS',
+    url: '/users/123',
+  });
+
+  expect(span.attributes[ATTR_HTTP_ROUTE]).toBe('unmatched');
+  expect(span.name).toBe('OPTIONS unmatched');
+});
+
+function createFakeFastifyInstance() {
+  const hooks: Record<string, Array<(...args: unknown[]) => void>> = {};
+  return {
+    hooks,
+    addHook(name: string, handler: (...args: unknown[]) => void) {
+      (hooks[name] ??= []).push(handler);
+    },
+  };
+}
+
+test('registerFastifyHttpRouteHook labels OPTIONS without a Nest interceptor', () => {
+  const httpSpan = createMockSpan('OPTIONS');
+  const incoming = {
+    httpVersion: '1.1',
+    method: 'OPTIONS',
+    url: '/users/123',
+  };
+  stashHttpServerSpan(incoming, httpSpan);
+
+  const instance = createFakeFastifyInstance();
+  registerFastifyHttpRouteHook(instance);
+  registerFastifyHttpRouteHook(instance);
+
+  expect(instance.hooks.onRequest).toHaveLength(1);
+  expect(instance.hooks.onResponse).toHaveLength(1);
+
+  const request = {
+    method: 'OPTIONS',
+    url: '/users/123',
+    routeOptions: { url: '/users/:id', method: 'OPTIONS' },
+    raw: incoming,
+  };
+
+  instance.hooks.onRequest?.[0]?.(request, {}, () => undefined);
+
+  expect(httpSpan.attributes[ATTR_HTTP_ROUTE]).toBe('/users/:id');
+  expect(httpSpan.name).toBe('OPTIONS /users/:id');
+});
+
+test('registerFastifyHttpRouteHook uses CORS OPTIONS * template when that is the matched route', () => {
+  const httpSpan = createMockSpan('OPTIONS');
+  const incoming = {
+    httpVersion: '1.1',
+    method: 'OPTIONS',
+    url: '/users/123',
+  };
+  stashHttpServerSpan(incoming, httpSpan);
+
+  const instance = createFakeFastifyInstance();
+  registerFastifyHttpRouteHook(instance);
+
+  instance.hooks.onRequest?.[0]?.(
+    {
+      method: 'OPTIONS',
+      url: '/users/123',
+      routeOptions: { url: '*', method: 'OPTIONS' },
+      raw: incoming,
+    },
+    {},
+    () => undefined,
+  );
+
+  expect(httpSpan.attributes[ATTR_HTTP_ROUTE]).toBe('*');
+  expect(httpSpan.name).toBe('OPTIONS *');
+});
+
+test('registerFastifyHttpRouteHook onResponse still labels when onRequest was skipped', () => {
+  const httpSpan = createMockSpan('OPTIONS');
+  const incoming = {
+    httpVersion: '1.1',
+    method: 'OPTIONS',
+    url: '/users/123',
+  };
+  stashHttpServerSpan(incoming, httpSpan);
+
+  const instance = createFakeFastifyInstance();
+  registerFastifyHttpRouteHook(instance);
+
+  instance.hooks.onResponse?.[0]?.(
+    {
+      method: 'OPTIONS',
+      url: '/users/123',
+      routeOptions: { url: '/users/:id', method: 'OPTIONS' },
+      raw: incoming,
+    },
+    {},
+    () => undefined,
+  );
+
+  expect(httpSpan.attributes[ATTR_HTTP_ROUTE]).toBe('/users/:id');
+  expect(httpSpan.name).toBe('OPTIONS /users/:id');
+});
+
+test('wrapFastifyFactory registers the hook on created instances', () => {
+  const factory = wrapFastifyFactory(() => createFakeFastifyInstance());
+  const instance = factory();
+  expect(instance.hooks.onRequest).toHaveLength(1);
+});
+
+test('patchFastifyModuleExports wraps function and named exports', () => {
+  const factory = Object.assign(() => createFakeFastifyInstance(), {
+    extra: true,
+  });
+  const wrapped = patchFastifyModuleExports(factory) as typeof factory & {
+    fastify: typeof factory;
+    default: typeof factory;
+  };
+
+  expect(typeof wrapped).toBe('function');
+  expect(wrapped.fastify).toBe(wrapped);
+  expect(wrapped.default).toBe(wrapped);
+  expect(wrapped().hooks.onRequest).toHaveLength(1);
+});
+
+test('Fastify OPTIONS hook does not rename a Nest handler child span', () => {
+  const httpSpan = createMockSpan('OPTIONS');
+  const nestSpan = createMockSpan('UsersController.options');
+  const incoming = {
+    httpVersion: '1.1',
+    method: 'OPTIONS',
+    url: '/users/123',
+  };
+  stashHttpServerSpan(incoming, httpSpan);
+
+  const instance = createFakeFastifyInstance();
+  registerFastifyHttpRouteHook(instance);
+
+  const ctx = trace.setSpan(ROOT_CONTEXT, nestSpan);
+  context.with(ctx, () => {
+    instance.hooks.onRequest?.[0]?.(
+      {
+        method: 'OPTIONS',
+        url: '/users/123',
+        routeOptions: { url: '/users/:id', method: 'OPTIONS' },
+        raw: incoming,
+      },
+      {},
+      () => undefined,
+    );
+  });
+
+  expect(httpSpan.name).toBe('OPTIONS /users/:id');
+  expect(nestSpan.attributes[ATTR_HTTP_ROUTE]).toBe('/users/:id');
+  expect(nestSpan.name).toBe('UsersController.options');
 });
