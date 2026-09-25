@@ -41,6 +41,16 @@ test('uses Fastify routeOptions.url template (v4.10+ / v5)', () => {
   ).toBe('/users/:id');
 });
 
+test('uses Fastify CORS OPTIONS * as the matched template', () => {
+  expect(
+    normalizeHttpRoute({
+      method: 'OPTIONS',
+      url: '/users/123',
+      routeOptions: { url: '*', method: 'OPTIONS' },
+    }),
+  ).toBe('*');
+});
+
 test('uses Fastify routerPath template when routeOptions is absent (v3 / early v4)', () => {
   expect(
     normalizeHttpRoute({

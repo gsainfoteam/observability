@@ -12,6 +12,7 @@ test('should export OpenTelemetry initialization functions', async () => {
   expect(module.Trace).toBeDefined();
   expect(module.OtelClassSerializerInterceptor).toBeDefined();
   expect(module.setSpanError).toBeDefined();
+  expect(module.registerFastifyHttpRouteHook).toBeDefined();
 });
 
 test('MetricsInterceptor should be instantiable', async () => {

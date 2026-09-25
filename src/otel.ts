@@ -8,6 +8,7 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 import { PrismaInstrumentation } from '@prisma/instrumentation';
 
+import { FastifyHttpRouteInstrumentation } from './otel/fastify-http-route.instrumentation';
 import {
   applyHttpRouteOnIncomingSpan,
   stashHttpServerSpan,
@@ -165,6 +166,7 @@ export const initializeOpenTelemetry = async (
               },
             }),
             new PrismaInstrumentation(),
+            new FastifyHttpRouteInstrumentation(),
           ],
         });
 

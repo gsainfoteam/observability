@@ -14,3 +14,4 @@ export type { PrismaQueryEvent } from './metrics/prisma-metrics.service';
 export { Trace } from './otel/trace.decorator';
 export { OtelClassSerializerInterceptor } from './otel/otel-class-serializer.interceptor';
 export { setSpanError } from './otel/span-error.util';
+export { registerFastifyHttpRouteHook } from './otel/http-route-span';
