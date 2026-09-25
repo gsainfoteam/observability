@@ -102,6 +102,8 @@ HTTP metrics use a `route` label. The interceptor prefers the **matched route te
 
 If no string route template is available, the label is `unmatched`. Concrete request paths (`url`, `path`, `originalUrl`) are never used as labels.
 
+The same template is written to inbound HTTP **server** spans as `http.route`, and the span name is updated (for example `GET /users/:id`) so Tempo/Grafana show a stable path. HTTP `requestHook` runs before Fastify matches a route, so it only stashes the SERVER span; `MetricsInterceptor` then sets `http.route` after routing. If no template is available, `http.route` is `unmatched` rather than a concrete path with IDs.
+
 ### 3. Register Prisma Metrics Service (Optional)
 
 For database query metrics, register the Prisma metrics service:
@@ -148,7 +150,9 @@ export class UserService {
 
 ### 5. Use Serializer Interceptor (Optional)
 
-Apply the observability-aware serializer interceptor for response serialization tracing:
+`OtelClassSerializerInterceptor` is a drop-in replacement for Nest's `ClassSerializerInterceptor`. It only adds a `nest.response.serialize` span around the same `serialize()` path — `@Exclude()`, `@Expose()`, getters, and `@SerializeOptions()` keep working.
+
+Pass the same constructor arguments you would pass to `ClassSerializerInterceptor` (Reflector plus optional default `class-transformer` options). Do **not** register both interceptors.
 
 ```typescript
 import { OtelClassSerializerInterceptor } from '@gsainfoteam/nest-observability';
@@ -157,10 +161,14 @@ import { Reflector } from '@nestjs/core';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const reflector = app.get(Reflector);
-  
-  // Register serializer interceptor (requires Reflector dependency)
-  app.useGlobalInterceptors(new OtelClassSerializerInterceptor(reflector));
-  
+
+  app.useGlobalInterceptors(
+    new OtelClassSerializerInterceptor(reflector, {
+      // optional; same options object as ClassSerializerInterceptor
+      // excludeExtraneousValues: true,
+    }),
+  );
+
   await app.listen(process.env.PORT ?? 3000);
 }
 ```

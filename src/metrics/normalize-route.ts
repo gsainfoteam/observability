@@ -23,8 +23,9 @@ function asNonEmptyString(value: unknown): string | undefined {
  * Prefers the Express `baseUrl` + `route.path` template, then Fastify
  * `routeOptions.url`. Uses legacy `routerPath` only when `routeOptions` is not
  * an object. Returns `unmatched` if no eligible nonblank string template exists.
- * Concrete request paths are never used as metric labels; a template such as
- * `/users/:id` keeps path parameters out of metric labels.
+ * Concrete request paths are never used as metric labels or as the primary
+ * span `http.route`; a template such as `/users/:id` keeps path parameters
+ * out of cardinality-sensitive attributes.
  */
 export function normalizeHttpRoute(req: unknown): string {
   if (!req || typeof req !== 'object') {
