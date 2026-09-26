@@ -1,6 +1,6 @@
 {
   "name": "@gsainfoteam/nest-observability",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "NestJS observability toolkit",
   "main": "dist/index.js",
   "module": "dist/index.js",

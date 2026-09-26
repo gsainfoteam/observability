@@ -1,27 +1,27 @@
-import { context, SpanStatusCode, trace } from '@opentelemetry/api';
-import { isObservable, Observable } from 'rxjs';
+import { context, SpanStatusCode, trace } from "@opentelemetry/api";
+import { isObservable, Observable } from "rxjs";
 
-import { setSpanError } from './span-error.util';
+import { setSpanError } from "./span-error.util";
 
-const WRAPPED = Symbol('OTEL_SERVICE_TRACE_WRAPPED');
+const WRAPPED = Symbol("OTEL_SERVICE_TRACE_WRAPPED");
 type AnyMethod = ((...args: unknown[]) => unknown) & { [WRAPPED]?: true };
 
 export const Trace = (): ClassDecorator => {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   return (target: Function) => {
-    const className = target.name || 'UnknownClass';
+    const className = target.name || "UnknownClass";
     const prototype = target.prototype as Record<string, unknown>;
     if (!prototype) {
       return;
     }
 
     for (const methodName of Object.getOwnPropertyNames(prototype)) {
-      if (methodName === 'constructor') {
+      if (methodName === "constructor") {
         continue;
       }
 
       const descriptor = Object.getOwnPropertyDescriptor(prototype, methodName);
-      if (!descriptor || typeof descriptor.value !== 'function') {
+      if (!descriptor || typeof descriptor.value !== "function") {
         continue;
       }
 
@@ -41,7 +41,7 @@ export const Trace = (): ClassDecorator => {
   };
 };
 
-const methodTracer = trace.getTracer('account.method.tracing');
+const methodTracer = trace.getTracer("account.method.tracing");
 
 const wrapMethod = (originalMethod: AnyMethod, spanName: string): AnyMethod => {
   if (originalMethod[WRAPPED]) {
@@ -95,6 +95,14 @@ const wrapMethod = (originalMethod: AnyMethod, spanName: string): AnyMethod => {
     });
   };
 
+  for (const key of Reflect.getMetadataKeys(originalMethod)) {
+    Reflect.defineMetadata(
+      key,
+      Reflect.getMetadata(key, originalMethod),
+      wrapped,
+    );
+  }
+
   wrapped[WRAPPED] = true;
   return wrapped;
 };
@@ -111,7 +119,7 @@ const wrapObservableWithSpan = (
     const pipelineSpan = context.with(parentContext, () =>
       methodTracer.startSpan(`${spanName}.pipeline`),
     );
-    pipelineSpan.setAttribute('subscription_gap_ms', subscriptionGapMs);
+    pipelineSpan.setAttribute("subscription_gap_ms", subscriptionGapMs);
     const pipelineContext = trace.setSpan(parentContext, pipelineSpan);
     const executionSpan = context.with(pipelineContext, () =>
       methodTracer.startSpan(`${spanName}.execution`),
@@ -179,9 +187,9 @@ const wrapObservableWithSpan = (
 const isPromiseLike = (value: unknown): value is Promise<unknown> => {
   if (
     value === null ||
-    (typeof value !== 'object' && typeof value !== 'function')
+    (typeof value !== "object" && typeof value !== "function")
   ) {
     return false;
   }
-  return typeof (value as Promise<unknown>).then === 'function';
+  return typeof (value as Promise<unknown>).then === "function";
 };
