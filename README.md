@@ -104,6 +104,8 @@ If no string route template is available, the label is `unmatched`. Concrete req
 
 The same template is written to inbound HTTP **server** spans as `http.route`, and the span name is updated (for example `GET /users/:id`) so Tempo/Grafana show a stable path. HTTP `requestHook` runs before Fastify matches a route, so it only stashes the SERVER span; `MetricsInterceptor` then sets `http.route` after routing. If no template is available, `http.route` is `unmatched` rather than a concrete path with IDs.
 
+CORS preflight **OPTIONS** is often answered by `@fastify/cors` in Fastify `onRequest` before Nest interceptors run. `initializeOpenTelemetry` patches Fastify so an `onRequest`/`onResponse` hook still sets `http.route` (for example `OPTIONS /users/:id` or `OPTIONS *`). Nest handler child spans are not renamed. If you create a Fastify instance before the SDK starts, call `registerFastifyHttpRouteHook(instance)` yourself.
+
 ### 3. Register Prisma Metrics Service (Optional)
 
 For database query metrics, register the Prisma metrics service:
