@@ -41,7 +41,7 @@ export const Trace = (): ClassDecorator => {
   };
 };
 
-const methodTracer = trace.getTracer("account.method.tracing");
+const methodTracer = trace.getTracer("infoteam.method.tracing");
 
 const wrapMethod = (originalMethod: AnyMethod, spanName: string): AnyMethod => {
   if (originalMethod[WRAPPED]) {
