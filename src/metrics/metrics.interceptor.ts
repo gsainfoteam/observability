@@ -4,12 +4,15 @@ import {
   HttpException,
   Injectable,
   NestInterceptor,
-} from '@nestjs/common';
-import { Observable } from 'rxjs';
-import { finalize, tap } from 'rxjs/operators';
-import { getMetricInstruments, startHttpRequestDurationTimer } from '../metrics';
-import { applyHttpRouteToSpans } from '../otel/http-route-span';
-import { normalizeHttpRoute } from './normalize-route';
+} from "@nestjs/common";
+import { Observable } from "rxjs";
+import { finalize, tap } from "rxjs/operators";
+import {
+  getMetricInstruments,
+  startHttpRequestDurationTimer,
+} from "../metrics";
+import { applyHttpRouteToSpans } from "../otel/http-route-span";
+import { normalizeHttpRoute } from "./normalize-route";
 
 @Injectable()
 export class MetricsInterceptor implements NestInterceptor {
@@ -27,6 +30,10 @@ export class MetricsInterceptor implements NestInterceptor {
    * @throws {Error} If metrics have not been initialized.
    */
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+    if (context.getType() !== "http") {
+      return next.handle();
+    }
+
     const http = context.switchToHttp();
     const req = http.getRequest();
     const res = http.getResponse();
@@ -34,7 +41,7 @@ export class MetricsInterceptor implements NestInterceptor {
     const { httpRequestsInFlight, httpRequestsTotal, httpRequestErrorsTotal } =
       getMetricInstruments();
 
-    const method = req.method ?? 'UNKNOWN';
+    const method = req.method ?? "UNKNOWN";
     const route = normalizeHttpRoute(req);
     applyHttpRouteToSpans(req, route);
 
@@ -57,10 +64,10 @@ export class MetricsInterceptor implements NestInterceptor {
           }
 
           const errorName =
-            err && typeof err === 'object' && 'constructor' in err
+            err && typeof err === "object" && "constructor" in err
               ? ((err as { constructor?: { name?: string } }).constructor
-                  ?.name ?? 'UnknownError')
-              : 'UnknownError';
+                  ?.name ?? "UnknownError")
+              : "UnknownError";
 
           httpRequestErrorsTotal.add(1, {
             method,
