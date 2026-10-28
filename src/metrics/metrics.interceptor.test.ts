@@ -56,6 +56,7 @@ test('MetricsInterceptor sets Fastify route template on the HTTP server span', (
     raw: incoming,
   };
   const executionContext = {
+    getType: () => 'http',
     switchToHttp: () => ({
       getRequest: () => req,
       getResponse: () => ({ statusCode: 200 }),
